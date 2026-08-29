@@ -1,3 +1,18 @@
+# ⚠️ Claude Full-Context Review Branch
+
+This branch is **not** the original blind-review snapshot anymore. It is a dedicated full-context review branch prepared on 2026-08-29.
+
+Please start with:
+
+1. [`CLAUDE-REVIEW-BRIEF.md`](CLAUDE-REVIEW-BRIEF.md)
+2. [`review-package/2026-08-29/README.md`](review-package/2026-08-29/README.md)
+
+The original repository files below preserve an earlier blind-review snapshot and supporting methodology history. The current project overlay, current V0.4 Contract, roadmap, review governance, stable-table background, and learning methodology are provided in the review package above.
+
+If an older document below conflicts with the current V0.4 overlay, treat that as historical drift rather than silently reverting the current project to the older rule.
+
+---
+
 # Operating Analysis Skills
 
 一套面向经营分析场景的 AI Skills 方法论与工程化实践。
