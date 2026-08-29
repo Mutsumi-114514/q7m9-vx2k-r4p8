@@ -1,29 +1,37 @@
-# Operating Analysis Skill — Distribution Mirror
+# Operating Analysis Skill Distribution Mirror
 
-这是 `operating-analysis-skills` 的精简同步仓，只保留当前可安装、可供 Agent 读取的 Skill 运行包。
+这是 `operating-analysis-skills` 的 **Skill-only Distribution Mirror**。
 
-## 当前同步对象
+用途：让内部 AI / 外部审查者只读取与当前 Skill 安装、运行和测试有关的内容，避免整个 META 仓带来的 Context Dilution。
+
+当前同步源：
 
 ```text
-skills/store-pnl-operating-analysis/
-├─ SKILL.md
-├─ INSTALL.md
-└─ references/
-   ├─ production-system-contract.md
-   ├─ store-pnl-data-contract.md
-   └─ query-scope-and-population-assembly.md
+Mutsumi-114514/operating-analysis-skills
+main @ c79c2f849d14c85384981e21bb3757e8923260dd
 ```
 
-用途：
+## 当前结构
 
-- 供内部 AI 读取当前 Skill 的真实运行结构；
-- 供工程 Benchmark / Reverse Engineering 对标；
-- 供第一版 Field Trial 安装与测试。
+```text
+skills/
+├─ runtime/
+│  └─ store-pnl-operating-analysis/
+└─ testing/
+   └─ store-pnl-batch-simulation/
 
-本仓**不是完整 META 方法论仓**。Roadmap、Retrospective、Learning Log、历史 Audit / Review、Research、文章素材等均有意排除，避免把非 Runtime Knowledge 带入 Agent Context。
+skill-packages/
+├─ runtime/
+│  └─ store-pnl-operating-analysis-v0.1.0-field-trial/
+└─ testing/
+   └─ store-pnl-batch-simulation-v0.1.0-field-trial/
 
-当前来源快照：
+docs/changelog/
+└─ skill-release-log.md
+```
 
-`Mutsumi-114514/operating-analysis-skills@4624461e47facf5dce39c9a8d9f787b4b9514051`
+本镜像**不包含**主仓的 Roadmap、Retrospective、Research、历史 Audit、Review History 与 Legacy Prototype。
 
-如果本镜像与主仓冲突，以主仓当前 Canonical Contract 为准。
+安装时请使用 `skill-packages/` 中带版本号的快照，或 `skills/` 中的 Current 工作副本。
+
+> **Current 用于工作，Versioned Package 用于交付；META 研究不进入本镜像。**
