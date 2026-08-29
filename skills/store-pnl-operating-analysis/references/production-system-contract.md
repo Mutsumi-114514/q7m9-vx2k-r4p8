@@ -1,29 +1,24 @@
-# Production System Contract V0.3：统一生产系统合同
+# Production System Contract V0.4：统一生产系统合同
 
-> 状态：`CURRENT CANONICAL SYSTEM CONTRACT`  
+> **Bundled Runtime Snapshot**：本文件是可安装 Skill 内置的运行合同快照，来源于 `docs/methodology/production-system-contract.md`，用于脱离原仓库安装时执行。若本包更新，应从 Canonical Contract 同步，而不是在此独立发明新规则。  
+> 状态：`CURRENT CANONICAL SYSTEM CONTRACT / BASELINE V1 CANDIDATE`  
 > 生效日期：2026-08-29  
-> 适用范围：单店损益 A 阶段（GMV → 毛利额 → 毛利率）。  
-> 当前证据链：GS-001 Materiality、GS-002 Collective Materiality、Repository Integration Audit、System Interaction Side-effect Test、GS-003 Query Scope & Comparable Population。  
-> 目标：把 Query Scope / Population、数学 Kernel、数据状态、Roll-up、Materiality、Collective Materiality、Attention 与解释边界收口到一份统一执行合同。
+> 适用范围：单店损益 A 阶段（GMV → 毛利额 → 毛利率）。
 
 ---
 
-## 0. Source of Truth 与优先级
+## 0. Installed Package Source of Truth
 
-运行期实现与测试按以下优先级读取：
+本安装包运行时优先级：
 
-1. **本文件 `production-system-contract.md`**：当前统一生产合同；
-2. `docs/data-contracts/store-pnl-data-contract.md`：输入、Presence、Period State、字段口径；
-3. `docs/methodology/query-scope-and-population-assembly.md`：Query Scope、可比 Population、任意时间窗口；
-4. `docs/methodology/production-shadow-decomposition.md`：数学公式与 Shadow 细节；
-5. `docs/methodology/materiality-gate.md`：GS-001 设计依据；
-6. `docs/methodology/collective-materiality.md`：GS-002 设计依据；
-7. `impact-ledger-and-rollup.md`、`roll-up-engine.md`、`skill-execution-architecture.md`：实现参考；
-8. Historical Review 仅用于理解演化，不是实施源。
+1. **本文件 `references/production-system-contract.md`**：统一 Production Contract；
+2. `references/store-pnl-data-contract.md`：输入、Presence、Period State、字段口径；
+3. `references/query-scope-and-population-assembly.md`：Query Scope、Comparable Population、Comparison Window；
+4. `SKILL.md`：运行入口、输出与 Field Trial 纪律。
 
-若支持文档出现旧表述或遗漏，以本文件为当前执行基线。
+若支持文件与本文件冲突，以本文件为准。
 
-> **一份运行合同可以引用多份证据文档，但运行规则只能有一个当前入口。**
+> **一份运行合同可以有多份解释材料，但运行规则只能有一个当前入口。**
 
 ---
 
@@ -34,6 +29,7 @@ User Query
 → Query Parser
 → Data Contract Validation
 → Scope / Population Resolver
+→ Comparison Window Grain Validation
 → Comparison Window Pairing
 → Comparable Monthly Mask（若适用）
 → Canonical Analysis Input for this Query
@@ -44,6 +40,7 @@ User Query
 → Mathematical Invariants
 → Gross Movement / Offset
 → Individual Materiality
+→ Registered Cohort Resolution / Validation
 → Collective Materiality across Registered Views
 → Structured Long-tail
 → Cross-View Non-Additivity Guard
@@ -75,15 +72,6 @@ comparable
 其他已注册筛选条件
 ```
 
-例如：
-
-```text
-这个月超体业绩为什么下滑？
-这个月地采毛利率为什么下降？
-5-6月整体毛利为什么下降？
-1-7月可比门店表现怎么样？
-```
-
 筛选后的合法事实集合就是本次 Query Scope。
 
 Scope 改变后必须重算：
@@ -112,11 +100,7 @@ Attention Rank
 门店 × 月份 × comparable_flag
 ```
 
-系统不在本层重新推断“开业后14个月”的资格逻辑；状态表本身是业务事实输入。
-
-`comparable_flag` 不是新的 Period State。
-
-### 3.1 本年逐月 Pair 规则
+系统不在本层重新推断资格逻辑；状态表本身是业务事实输入。`comparable_flag` 不是新的 Period State。
 
 对本年月份 `t`：
 
@@ -138,35 +122,27 @@ APPEND monthly Current/Base pairs
 
 > **本年逐月定资格，同一资格同时约束本年与去年同期；逐月取数后合并，再从头分析。**
 
-禁止：
-
-```text
-使用去年同期自己的 comparable_flag 再筛一次
-使用期末可比名单回刷整个累计期间
-只筛 Current、不筛 Base
-先跑全量 Contextual Result 再筛 Comparable
-```
+禁止：使用去年同期自己的 comparable_flag 再筛一次、使用期末可比名单回刷累计期、只筛 Current 不筛 Base、先跑全量 Contextual Result 再筛 Comparable。
 
 ---
 
 ## 4. Comparison Window
 
-时间统一建模为：
-
-> **Comparison Window（比较时间窗口）**
-
-包括：
+V1 Canonical Input：
 
 ```text
-单月
-5-6月
-Q2
-YTD
-618周期
-双11周期
-最近N个月
-其他业务窗口
+period = YYYYMM
 ```
+
+硬规则：
+
+> **Comparison Window resolution MUST NOT be finer than the Canonical Input time grain.**
+
+当前支持单月和由完整月份组成的月份集合，如 5-6月、Q2、YTD、最近 N 个月。
+
+“618”“双11”等业务标签只有在上游输入本身已提供对应业务窗口，或已注册 Window 能完整唯一解析为当前 Grain 时才支持。
+
+禁止从月度输入平均分摊、按天数拆分、AI 推断月内分布或隐式构造日粒度事实。
 
 跨月时：
 
@@ -177,17 +153,7 @@ YTD
 → 完整重算 Contextual Result
 ```
 
-因此：
-
-```text
-Window Rate Change != SUM(月度 Rate Change)
-Window Mix         != SUM(月度 Mix)
-Window Rate Effect != SUM(月度 Rate Effect)
-Window Materiality != SUM(月度 Materiality)
-Window Offset      != SUM / AVG(月度 Offset)
-```
-
-YTD 只是 Comparison Window 的一个常见实例。
+因此 Window Rate、Mix、Rate Effect、Materiality、Offset 不能直接对月度结果 SUM / AVG。
 
 ---
 
@@ -210,13 +176,7 @@ YTD 只是 Comparison Window 的一个常见实例。
 星选
 ```
 
-派生渠道组：
-
-```text
-大集采 = 集采 + 万家
-```
-
-`大集采` 不是第五个 Atomic Channel；不得把 `集采 + 万家 + 大集采` 当互斥成员再次相加。
+`大集采 = 集采 + 万家` 是 Derived View，不是第五个 Atomic Channel。
 
 ---
 
@@ -231,7 +191,7 @@ current_key_present
 
 再处理金额空值。
 
-Period State 以 Data Contract 为机械定义：
+Period State：
 
 ```text
 ABSENT
@@ -267,7 +227,7 @@ Atomic Entry / Exit 只描述当前 Grain 的业务原子新增 / 退出，不�
 ΣΔGMV_i = ΔGMV_parent
 ```
 
-GMV 在 A 阶段主要回答 WHAT / WHERE，不需要额外复杂归因算法。
+GMV 主要回答 WHAT / WHERE。
 
 ---
 
@@ -305,17 +265,9 @@ NONSTANDARD_TRANSITION: Nonstandard = current_gp - base_gp
 
 ## 9. Atomic Attribution 与 Parent Re-decomposition
 
-Atomic Attribution 回答：
+Atomic Attribution 回答哪些原子拉动 / 拖累 Parent；其 Effect 可以向上 SUM，但仍是 Atomic Attribution Roll-up。
 
-> 哪些原子拉动 / 拖累 Parent？
-
-其 Effect 可以向上 SUM，但仍是 Atomic Attribution Roll-up。
-
-Parent Re-decomposition 回答：
-
-> 当前 Parent 自己的毛利变化，是总体 GMV 还是总体毛利率造成？
-
-必须聚合 Parent 后重新 Bennett。
+Parent Re-decomposition 回答当前 Parent 自己的毛利变化是总体 GMV 还是总体毛利率造成，必须聚合 Parent 后重新 Bennett。
 
 > **Σ Atomic Scale/Rate ≠ Parent Bennett Scale/Rate 的语义。**
 
@@ -382,8 +334,6 @@ Membership Replacement ↔ Membership Replacement
 Entry ↔ Exit
 ```
 
-正式断言：
-
 ```text
 Effect_reverse(mapped_component) = -Effect_forward(component)
 ```
@@ -401,19 +351,7 @@ Derived Ratio：
 → 当前 Context 重算
 ```
 
-不得直接 Roll-up：
-
-```text
-毛利率
-GMV同比
-Contribution %
-Offset Intensity
-Interaction Intensity
-Individual Materiality
-Collective Materiality
-```
-
-硬规则：
+不得直接 Roll-up：毛利率、GMV同比、Contribution %、Offset Intensity、Individual Materiality、Collective Materiality。
 
 > **Materiality Never Rolls Up；Materiality Must Be Recomputed in Context.**
 
@@ -430,8 +368,6 @@ Offset Intensity = 1 - Net/Gross
 ```
 
 Gross=0 时 Offset=N/A。
-
-必须区分 Factor Offset 与 Unit Offset。
 
 Offset 只说明内部正负运动抵消程度，不自动说明现实经营原因。
 
@@ -469,34 +405,45 @@ materiality_reason = LEAVE_ONE_OUT_DENOMINATOR_UNDEFINED
 
 Tiny Denominator 仍可为 STANDARD，并增加 warning；禁止改原值、封顶 Rate、加 epsilon、删行。
 
-不变量：
-
 > **Low-Materiality Dominance Prohibited.**
 
 ---
 
-## 15. Collective Materiality
-
-不变量：
+## 15. Collective Materiality 与 Registered Cohort
 
 > **Individual Insignificance ≠ Collective Insignificance.**
 
-只在已注册、具有稳定业务语义的 Factor / Hierarchy / Derived View 上检查群体效应。
+Collective Materiality 只在已注册、membership 确定、具有稳定业务语义的 Factor / Hierarchy / Derived View 上运行。
 
-当前包括：
+当前 V1 基础 View：
 
 ```text
 分部
 门店
 店型
-门店规模带
 渠道
-大集采
+大集采（Derived View）
 ```
 
-未来可扩展：大区、品类、品牌、供应商、费用科目、返利类型等。
+一个 Cohort / View 进入 Production Registry 前，membership 必须能由至少一种来源唯一解析：Canonical Contract 的确定性 predicate、版本化配置、权威上游字段 / hierarchy / attribute。
 
-禁止任意 `2^N` 原子组合搜索。
+至少可追踪：
+
+```text
+cohort_id / view_id
+membership_rule 或 authoritative_source
+source_version / rule_version
+适用 grain / period
+```
+
+若 membership、来源或版本不能在计算前唯一确定：
+
+```text
+Registry Validation = FAIL
+→ 不运行该 Cohort 的 Collective Materiality
+```
+
+Pattern Label 可以描述已确定 membership 的 Cohort，但不能自动创造 membership；禁止任意 `2^N` 原子组合搜索。
 
 对 Rate Cohort `C`：
 
@@ -516,50 +463,29 @@ Collective Impact_C = |ΔR - ΔR(-C)|
 
 Rate Long-tail：将整个集合移除后重新计算 Parent Rate Impact。
 
-至少保留：
-
-```text
-Long-tail Total
-Long-tail by Registered Factor / Direction
-```
-
-结构化 Long-tail 在当前 Context 下达到重大水平时必须升级为候选 WHY。
+至少保留 Long-tail Total，以及按 Registered Factor / Direction 的结构化 Long-tail。
 
 ---
 
 ## 17. Cross-View Non-Additivity Guard
 
-同一底层变化可同时被门店、渠道、店型、分部、规模带等 View 看见。
-
 > **Projection Is Evidence, Not Additional Effect.**
+
+同一底层变化可同时被门店、渠道、店型、分部等 View 看见。
 
 禁止跨 View Materiality 相加，也禁止自动把多个 View 命中当成多个独立 Driver。
 
-在 Finding Consolidation 正式冻结前：
+无法判断关系时：
 
 ```text
 finding_relation = OVERLAP_UNKNOWN
 ```
 
-用于无法判断是否同一现象的情况。
-
 ---
 
 ## 18. Attention
 
-Attention 必须在完整计算和 Materiality 之后运行。
-
-至少考虑：
-
-```text
-Mathematical Effect
-Parent Materiality
-Collective Materiality
-Offset
-Direction
-Boundary / Warning
-View / Context
-```
+Attention 必须在完整计算和 Materiality 之后运行，至少考虑 Mathematical Effect、Parent Materiality、Collective Materiality、Offset、Direction、Boundary / Warning、View / Context。
 
 当前不冻结固定重大性阈值；阈值只影响展示，不影响事实和数学结果。
 
@@ -567,39 +493,29 @@ View / Context
 
 ## 19. Language Contract
 
-允许：
+允许：拉动 / 拖累 GMV / GP、Parent 毛利规模 / 总体率影响、存量 Mix、内部对冲、Registered Cohort 合计重大、全口径与可比口径差异。
+
+不允许仅凭当前层直接声称：政策导致、竞争导致、返利能力下降、执行不到位、主动补偿、新店培育不佳。
+
+现实原因进入：
 
 ```text
-拉动 / 拖累 GMV / GP
-Parent 毛利变化体现为规模 / 总体率影响
-存量结构变化形成 Mix 影响
-存在内部对冲
-大量同类小变化合并后形成重大结构影响
-全口径与可比口径出现差异
+Mathematical WHY
+→ Hypothesis
+→ Evidence
+→ Conclusion
 ```
-
-不允许仅凭 A 层直接声称：
-
-```text
-政策导致
-竞争导致
-返利能力下降
-执行不到位
-主动补偿
-新店培育不佳
-```
-
-现实原因进入 Hypothesis → Evidence。
 
 ---
 
 ## 20. Production Invariants
 
-正式实现至少检查：
+至少检查：
 
 ```text
 Population Assembly Before Context
 Current/Base Population Pair Consistency
+Comparison Window Grain Compatibility
 Comparison Window Recalculation
 Query Context Recalculation
 Atomic GP Closure
@@ -612,6 +528,7 @@ Presence / Zero Separation
 Derived Ratio No-Roll-up
 Materiality Context Recalculation
 Low-Materiality Dominance Prohibited
+Registered Cohort Resolvability
 Collective Blindness Prohibited
 Cross-View Non-Additivity
 Boundary Routing
@@ -619,9 +536,9 @@ Unrounded Closure
 No Causal Overclaim
 ```
 
-任何适用的硬不变量失败：不进入最终 AI Interpretation。
+任何适用 Hard Invariant 失败：不进入最终 AI Interpretation。
 
-Decision-layer 不变量失败时，可以保留数学结果，但必须停止输出“主要 WHY”。
+Decision-layer 不变量失败时，可以保留已验证数学结果，但必须停止输出“主要 WHY”。
 
 ---
 
@@ -637,6 +554,7 @@ scope
 query_scope
 comparison_period
 comparison_window
+comparison_window_grain
 population_rule
 population_rule_version
 view_type
@@ -663,6 +581,8 @@ materiality_rank
 materiality_status
 
 cohort_id
+cohort_membership_rule / cohort_authoritative_source
+cohort_rule_version / cohort_source_version
 collective_pattern
 collective_materiality_impact
 
@@ -671,7 +591,7 @@ attention_status
 finding_relation
 ```
 
-若使用可比口径，还应可追踪 comparable status source/version，但不得把可比资格写成全局永久原子状态。
+若使用可比口径，还应可追踪 comparable status source/version。
 
 ---
 
@@ -688,6 +608,7 @@ Rate Bridge
 Contribution
 Offset
 Individual Materiality
+Registered Cohort Validation
 Collective Materiality
 Structured Long-tail
 Attention
@@ -704,10 +625,11 @@ Materiality 固定阈值
 Attention Top N / Pareto 阈值
 Finding Consolidation / 跨 View 去重算法
 Collective Cohort 最终优先级策略
+Automatic Cohort Discovery / Pattern Mining
 Interaction Shadow 是否保留
 ```
 
-这些在通过 Golden / 历史回测 / Human Adjudication 前，不得写成 Production 事实。
+这些不得在没有证据时写成 Production 事实。
 
 ---
 
@@ -717,7 +639,9 @@ Interaction Shadow 是否保留
 
 > **可比不是新的分析算法，而是由本年逐月状态驱动的 Population Filter。**
 
-> **YTD 不是特殊算法，只是 Comparison Window 的一个常见实例。**
+> **Comparison Window 不能比输入事实更细；Window 名称不会创造不存在的数据。**
+
+> **Registered Cohort 必须先有唯一可追踪的 membership，再谈 Collective Materiality。**
 
 > **算得对只是最低门槛；还必须知道什么对当前 Parent 真的重要。**
 
